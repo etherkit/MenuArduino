@@ -54,7 +54,7 @@ public:
   void addDirectoryMenu(const char*);
   void addActionMenu(const char*, void (*_callback)(void));
   void addActionMenu(const char*, void (*_callback)(uint8_t), const uint8_t);
-  void addSettingMenu(const char*, void (*_callback)(const char *), const char *);
+  void addSettingMenu(const char*, void (*_callback)(const char *, const char *), const char *);
 };
 
 class ActionMenu : public BaseMenu
@@ -72,10 +72,10 @@ public:
 class SettingMenu : public BaseMenu
 {
 public:
-  SettingMenu(BaseMenu*, const char *, void (*_callback_key)(const char *), const char *);
+  SettingMenu(BaseMenu*, const char *, void (*_callback_key)(const char *, const char *), const char *);
   MenuType select();
 
-  void (*callback_key)(const char *) = nullptr;
+  void (*callback_key)(const char *, const char *) = nullptr;
   const char * key = nullptr;
 };
 
@@ -94,7 +94,7 @@ public:
   void addChild(const char*);
   void addChild(const char*, void (*callback)(void));
   void addChild(const char*, void (*callback)(uint8_t), const uint8_t);
-  void addChild(const char*, void (*callback)(const char *), const char *);
+  void addChild(const char*, void (*callback)(const char *, const char *), const char *);
   uint8_t countChildren();
   Vector<BaseMenu*> getChildren();
   BaseMenu* getActiveChild();

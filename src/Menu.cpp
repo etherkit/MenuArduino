@@ -89,7 +89,7 @@ void DirectoryMenu::addActionMenu(const char* _label, void (*_callback)(uint8_t)
 	new ActionMenu(this, _label, _callback, val);
 }
 
-void DirectoryMenu::addSettingMenu(const char* _label, void (*_callback)(const char *), const char * _key)
+void DirectoryMenu::addSettingMenu(const char* _label, void (*_callback)(const char *, const char *), const char * _key)
 {
 	new SettingMenu(this, _label, _callback, _key);
 }
@@ -118,14 +118,14 @@ MenuType ActionMenu::select()
 	}
 }
 
-SettingMenu::SettingMenu(BaseMenu* _parent, const char* _label, void (*_callback)(const char *), const char * _key)
+SettingMenu::SettingMenu(BaseMenu* _parent, const char* _label, void (*_callback)(const char *, const char *), const char * _key)
     : BaseMenu(_parent, _label, MenuType::Setting), callback_key(_callback), key(_key){}
 
 MenuType SettingMenu::select()
 {
 	if(callback_key != nullptr)
 	{
-		callback_key(key);
+		callback_key(key, label);
 		return MenuType::Setting;
 	}
 	else
@@ -234,7 +234,7 @@ void Menu::addChild(const char* label, void (*callback)(uint8_t), const uint8_t 
   static_cast<DirectoryMenu*>(BaseMenu::active_menu)->addActionMenu(label, callback, val);
 }
 
-void Menu::addChild(const char* label, void (*callback)(const char *), const char * key)
+void Menu::addChild(const char* label, void (*callback)(const char *, const char *), const char * key)
 {
   static_cast<DirectoryMenu*>(BaseMenu::active_menu)->addSettingMenu(label, callback, key);
 }
