@@ -3,8 +3,10 @@ Menu	KEYWORD1
 selectChild	KEYWORD2
 selectActive	KEYWORD2
 selectParent	KEYWORD2
+selectRoot  KEYWORD2
 addChild	KEYWORD2
 countChildren	KEYWORD2
 getChildren	KEYWORD2
+setActiveChild KEYWORD2
 active_menu	KEYWORD2
 active_item	KEYWORD2

@@ -1,0 +1,390 @@
+/*
+ * Menu.cpp - Generic menu class library for Arduino
+ *
+ * Makes use of modified Vector.h from Tom Stewart, since Arduino doesn't play
+ * nicely with the STL yet.
+ * https://github.com/tomstewart89/Vector
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "Menu.h"
+
+#include <string>
+#include <cstring>
+#include <memory>
+
+BaseMenu *active_menu = nullptr;
+uint8_t active_item = 0;
+
+/*
+ * Morse::Morse(uint8_t tx_pin, float init_wpm) : output_pin(tx_pin)
+ *
+ * Create an instance of the Morse class.
+ *
+ * tx_pin - Arduino pin used as the output by this library. Will not toggle an
+ *          output pin if set to 0.
+ * init_wpm - Sending speed in words per minute.
+ *
+ */
+BaseMenu::BaseMenu(BaseMenu *_parent, const char* _label, MenuType _type)
+	: parent(_parent), type(_type)
+{
+	if (parent != nullptr)
+	{
+		parent->submenus.push_back(this); // the STL way
+		// parent->submenus.PushBack(this);
+	}
+	strcpy(label, _label);
+	// label = std::string(_label);
+}
+
+DirectoryMenu::DirectoryMenu(BaseMenu *_parent, const char* _label)
+	: BaseMenu(_parent, _label, MenuType::Directory) {}
+
+DirectoryMenu::~DirectoryMenu()
+{
+	// delete submenu pointers
+	for (auto &menu : submenus)
+	{
+		delete menu;
+	}
+}
+
+MenuType DirectoryMenu::select()
+{
+	// if(submenus.size() > 0)
+	// {
+	active_menu = active_menu->submenus[active_item];
+	// active_menu = active_menu->submenus[0];
+	// active_menu = active_menu->submenus[index];
+	return MenuType::Directory;
+	// }
+	// else
+	// {
+	// 	return MenuType::Invalid;
+	// }
+}
+
+void DirectoryMenu::addDirectoryMenu(const char* _label)
+{
+	new DirectoryMenu(this, _label);
+}
+
+void DirectoryMenu::addActionMenu(const char* _label, void (*_callback)(void))
+{
+	new ActionMenu(this, _label, _callback);
+}
+
+void DirectoryMenu::addActionMenu(const char* _label, void (*_callback)(uint8_t), uint8_t val)
+{
+	new ActionMenu(this, _label, _callback, val);
+}
+
+void DirectoryMenu::addSettingMenu(const char* _label, void (*_callback)(const char*, const char*), const char* _key)
+{
+	new SettingMenu(this, _label, _callback, _key);
+}
+
+ActionMenu::ActionMenu(BaseMenu *_parent, const char* _label, void (*_callback)(void))
+	: BaseMenu(_parent, _label, MenuType::Action), callback(_callback) {}
+
+ActionMenu::ActionMenu(BaseMenu *_parent, const char* _label, void (*_callback)(uint8_t), uint8_t _val)
+	: BaseMenu(_parent, _label, MenuType::Action), callback_uint(_callback), val(_val) {}
+
+MenuType ActionMenu::select()
+{
+	if (callback != nullptr)
+	{
+		callback();
+		return MenuType::Action;
+	}
+	else if (callback_uint != nullptr)
+	{
+		callback_uint(val);
+		return MenuType::Action;
+	}
+	else
+	{
+		return MenuType::Directory;
+	}
+}
+
+SettingMenu::SettingMenu(BaseMenu *_parent, const char* _label, void (*_callback)(const char*, const char*), const char* _key)
+	: BaseMenu(_parent, _label, MenuType::Setting), callback_key(_callback)
+{
+	strncpy(key, _key, 20);
+}
+
+MenuType SettingMenu::select()
+{
+	if (callback_key != nullptr)
+	{
+		callback_key(key, label);
+		return MenuType::Setting;
+	}
+	else
+	{
+		return MenuType::Directory;
+	}
+}
+
+Menu::Menu()
+{
+	root_menu = new DirectoryMenu(nullptr, "Main Menu");
+	active_menu = root_menu;
+	active_item = 0;
+	active_child = active_item;
+}
+
+Menu::Menu(const char* label)
+{
+	root_menu = new DirectoryMenu(nullptr, label);
+	active_menu = root_menu;
+	active_item = 0;
+	active_child = active_item;
+}
+
+Menu::~Menu()
+{
+	delete root_menu;
+}
+
+MenuType Menu::selectChild(const uint8_t index)
+{
+	// Bounds check
+	//if(index >= active_menu->submenus.size()) // the STL way
+	if (index >= active_menu->submenus.size())
+	{
+		return MenuType::Invalid;
+	}
+	else
+	{
+		// Returns true if the selection was an action
+		// active_item = index;
+		MenuType action = active_menu->submenus[index]->select();
+		// active_menu = active_menu->submenus[index];
+		// active_menu->select();
+		// active_item = 0;
+		// active_child = active_item;
+		return MenuType::Invalid;
+		// return action;
+	}
+}
+
+MenuType Menu::selectActiveChild()
+{
+	return selectChild(active_item);
+}
+
+MenuType Menu::selectActiveChild(uint8_t offset)
+{
+	return selectChild(active_item + offset);
+}
+
+bool Menu::selectParent()
+{
+	if (active_menu->parent != nullptr)
+	{
+		active_menu = active_menu->parent;
+		active_item = 0;
+		active_child = active_item;
+		return false;
+	}
+	else
+	{
+		active_menu = root_menu;
+		active_item = 0;
+		active_child = active_item;
+		return true;
+	}
+	// active_item = 0;
+	// active_child = active_item;
+	//
+	// if(active_menu == root_menu)
+	// {
+	// 	return true;
+	// }
+	// else
+	// {
+	// 	return false;
+	// }
+}
+
+void Menu::selectRoot()
+{
+	active_menu = root_menu;
+	active_item = 0;
+	active_child = active_item;
+}
+
+void Menu::addChild(const char* label)
+{
+	static_cast<DirectoryMenu *>(active_menu)->addDirectoryMenu(label);
+}
+
+void Menu::addChild(const char* label, void (*callback)(void))
+{
+	static_cast<DirectoryMenu *>(active_menu)->addActionMenu(label, callback);
+}
+
+void Menu::addChild(const char* label, void (*callback)(uint8_t), uint8_t val)
+{
+	static_cast<DirectoryMenu *>(active_menu)->addActionMenu(label, callback, val);
+}
+
+void Menu::addChild(const char* label, void (*callback)(const char*, const char*), const char* key)
+{
+	static_cast<DirectoryMenu *>(active_menu)->addSettingMenu(label, callback, key);
+}
+
+uint8_t Menu::countChildren()
+{
+	return active_menu->submenus.size(); // the STL way
+	// return active_menu->submenus.Size();
+}
+
+// std::vector<BaseMenu *> Menu::getChildren()
+std::deque<BaseMenu *> Menu::getChildren()
+{
+	return active_menu->submenus;
+}
+
+BaseMenu *Menu::getActiveChild()
+{
+	return active_menu->submenus[active_item];
+}
+
+BaseMenu *Menu::getActiveChild(const uint8_t offset)
+{
+	if (active_child + offset >= active_menu->submenus.size())
+	{
+		return nullptr;
+	}
+	else
+	{
+		return active_menu->submenus[active_item + offset];
+	}
+}
+
+const char* Menu::getActiveChildLabel()
+{
+	if (active_child >= active_menu->submenus.size())
+	{
+		return "";
+		// strncpy(val, "", 20);
+	}
+	else
+	{
+		return active_menu->submenus[active_item]->label;
+		// strncpy(val, active_menu->submenus[active_item]->label, 20);
+	}
+	//return active_menu->submenus[active_item]->label;
+}
+
+const char* Menu::getActiveChildLabel(uint8_t offset)
+{
+	if (active_child + offset >= active_menu->submenus.size())
+	{
+		return "";
+		// strncpy(val, "", 20);
+	}
+	else
+	{
+		return active_menu->submenus[active_item + offset]->label;
+		// strncpy(val, active_menu->submenus[active_item + offset]->label, 20);
+	}
+}
+
+bool Menu::setActiveChild(uint8_t child)
+{
+	if (child <= countChildren() - 1)
+	{
+		active_item = child;
+		active_child = active_item;
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool Menu::atRoot()
+{
+	if (active_menu == root_menu)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+void Menu::operator++()
+{
+	if (active_item >= countChildren() - 1)
+	{
+		active_item = 0;
+		active_child = active_item;
+	}
+	else
+	{
+		++active_item;
+		active_child = active_item;
+	}
+}
+
+void Menu::operator++(int)
+{
+	if (active_item >= countChildren() - 1)
+	{
+		active_item = 0;
+		active_child = active_item;
+	}
+	else
+	{
+		++active_item;
+		active_child = active_item;
+	}
+}
+
+void Menu::operator--()
+{
+	if (active_item == 0)
+	{
+		active_item = countChildren() - 1;
+		active_child = active_item;
+	}
+	else
+	{
+		--active_item;
+		active_child = active_item;
+	}
+}
+
+void Menu::operator--(int)
+{
+	if (active_item == 0)
+	{
+		active_item = countChildren() - 1;
+		active_child = active_item;
+	}
+	else
+	{
+		--active_item;
+		active_child = active_item;
+	}
+}

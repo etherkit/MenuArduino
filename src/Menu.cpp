@@ -1,10 +1,6 @@
 /*
  * Menu.cpp - Generic menu class library for Arduino
  *
- * Makes use of modified Vector.h from Tom Stewart, since Arduino doesn't play
- * nicely with the STL yet.
- * https://github.com/tomstewart89/Vector
- *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -23,9 +19,8 @@
 #include <memory>
 
 #include "Menu.h"
-#include "Vector.h"
 
-BaseMenu* BaseMenu::active_menu = nullptr;
+BaseMenu *BaseMenu::active_menu = nullptr;
 uint8_t BaseMenu::active_item = 0;
 
 /*
@@ -38,170 +33,179 @@ uint8_t BaseMenu::active_item = 0;
  * init_wpm - Sending speed in words per minute.
  *
  */
-BaseMenu::BaseMenu(BaseMenu* _parent, const char* _label, MenuType _type)
+BaseMenu::BaseMenu(BaseMenu *_parent, const char *_label, MenuType _type)
 	: parent(_parent), type(_type)
 {
-	if(parent != nullptr)
-  {
-    //parent->submenus.push_back(this); // the STL way
-		parent->submenus.PushBack(this);
-  }
+	if (parent != nullptr)
+	{
+		parent->submenus.push_back(this); // the STL way
+		// parent->submenus.PushBack(this);
+	}
 	strcpy(label, _label);
 }
 
-DirectoryMenu::DirectoryMenu(BaseMenu* _parent, const char* _label)
+BaseMenu::~BaseMenu()
+{
+	// delete submenu pointers
+	for (auto &menu : submenus)
+	{
+		delete menu;
+	}
+}
+
+DirectoryMenu::DirectoryMenu(BaseMenu *_parent, const char *_label)
 	: BaseMenu(_parent, _label, MenuType::Directory) {}
 
 DirectoryMenu::~DirectoryMenu()
 {
 	// delete submenu pointers
-  for(auto & menu : submenus)
-  {
-    delete menu;
-  }
+	// for (auto &menu : submenus)
+	// {
+	// 	delete menu;
+	// }
 }
 
 MenuType DirectoryMenu::select()
 {
 	// if(submenus.Size() > 0)
 	// {
-  	BaseMenu::active_menu = this;
-		return MenuType::Directory;
+	BaseMenu::active_menu = this;
+	return MenuType::Directory;
 	// }
 	// else
 	// {
-  // 	return MenuType::Invalid;
+	// 	return MenuType::Invalid;
 	// }
 }
 
-void DirectoryMenu::addDirectoryMenu(const char* _label)
+void DirectoryMenu::addDirectoryMenu(const char *_label)
 {
 	new DirectoryMenu(this, _label);
 }
 
-void DirectoryMenu::addActionMenu(const char* _label, void (*_callback)(void))
+void DirectoryMenu::addActionMenu(const char *_label, void (*_callback)(void))
 {
 	new ActionMenu(this, _label, _callback);
 }
 
-void DirectoryMenu::addActionMenu(const char* _label, void (*_callback)(uint8_t), const uint8_t val)
+void DirectoryMenu::addActionMenu(const char *_label, void (*_callback)(uint8_t), const uint8_t val)
 {
 	new ActionMenu(this, _label, _callback, val);
 }
 
-void DirectoryMenu::addSettingMenu(const char* _label, void (*_callback)(const char *, const char *), const char * _key)
+void DirectoryMenu::addSettingMenu(const char *_label, void (*_callback)(const char *, const char *), const char *_key)
 {
 	new SettingMenu(this, _label, _callback, _key);
 }
 
-ActionMenu::ActionMenu(BaseMenu* _parent, const char* _label, void (*_callback)(void))
-    : BaseMenu(_parent, _label, MenuType::Action), callback(_callback) {}
+ActionMenu::ActionMenu(BaseMenu *_parent, const char *_label, void (*_callback)(void))
+	: BaseMenu(_parent, _label, MenuType::Action), callback(_callback) {}
 
-ActionMenu::ActionMenu(BaseMenu* _parent, const char* _label, void (*_callback)(uint8_t), const uint8_t _val)
-    : BaseMenu(_parent, _label, MenuType::Action), callback_uint(_callback), val(_val) {}
+ActionMenu::ActionMenu(BaseMenu *_parent, const char *_label, void (*_callback)(uint8_t), const uint8_t _val)
+	: BaseMenu(_parent, _label, MenuType::Action), callback_uint(_callback), val(_val) {}
 
 MenuType ActionMenu::select()
 {
-	if(callback != nullptr)
+	if (callback != nullptr)
 	{
-  	callback();
+		callback();
 		return MenuType::Action;
 	}
-	else if(callback_uint != nullptr)
+	else if (callback_uint != nullptr)
 	{
 		callback_uint(val);
 		return MenuType::Action;
 	}
 	else
 	{
-  	return MenuType::Directory;
+		return MenuType::Directory;
 	}
 }
 
-SettingMenu::SettingMenu(BaseMenu* _parent, const char* _label, void (*_callback)(const char *, const char *), const char * _key)
-    : BaseMenu(_parent, _label, MenuType::Setting), callback_key(_callback), key(_key){}
+SettingMenu::SettingMenu(BaseMenu *_parent, const char *_label, void (*_callback)(const char *, const char *), const char *_key)
+	: BaseMenu(_parent, _label, MenuType::Setting), callback_key(_callback), key(_key) {}
 
 MenuType SettingMenu::select()
 {
-	if(callback_key != nullptr)
+	if (callback_key != nullptr)
 	{
 		callback_key(key, label);
 		return MenuType::Setting;
 	}
 	else
 	{
-  	return MenuType::Directory;
+		return MenuType::Directory;
 	}
 }
 
 Menu::Menu()
 {
-  root_menu = new DirectoryMenu(nullptr, "Main Menu");
-  BaseMenu::active_menu = root_menu;
-  BaseMenu::active_item = 0;
+	root_menu = new DirectoryMenu(nullptr, "Main Menu");
+	BaseMenu::active_menu = root_menu;
+	BaseMenu::active_item = 0;
 	active_child = BaseMenu::active_item;
 }
 
-Menu::Menu(const char* label)
+Menu::Menu(const char *label)
 {
-  root_menu = new DirectoryMenu(nullptr, label);
-  BaseMenu::active_menu = root_menu;
-  BaseMenu::active_item = 0;
+	root_menu = new DirectoryMenu(nullptr, label);
+	BaseMenu::active_menu = root_menu;
+	BaseMenu::active_item = 0;
 	active_child = BaseMenu::active_item;
 }
 
 Menu::~Menu()
 {
-  delete root_menu;
+	delete root_menu;
 }
 
 MenuType Menu::selectChild(const uint8_t index)
 {
-  // Bounds check
-	//if(index >= BaseMenu::active_menu->submenus.size()) // the STL way
-  if(index >= BaseMenu::active_menu->submenus.Size())
-  {
-    return MenuType::Invalid;
-  }
-  else
-  {
+	// Bounds check
+	if(index >= BaseMenu::active_menu->submenus.size()) // the STL way
+	// if (index >= BaseMenu::active_menu->submenus.Size())
+	{
+		return MenuType::Invalid;
+	}
+	else
+	{
 		// Returns true if the selection was an action
 		MenuType action = BaseMenu::active_menu->submenus[index]->select();
 		BaseMenu::active_item = 0;
 		active_child = BaseMenu::active_item;
 		return action;
-  }
+	}
 }
 
 MenuType Menu::selectActiveChild()
 {
-  return selectChild(BaseMenu::active_item);
+	return selectChild(BaseMenu::active_item);
 }
 
 MenuType Menu::selectActiveChild(const uint8_t offset)
 {
-  return selectChild(BaseMenu::active_item + offset);
+	return selectChild(BaseMenu::active_item + offset);
 }
 
 bool Menu::selectParent()
 {
-  if(BaseMenu::active_menu->parent != nullptr)
-  {
-    BaseMenu::active_menu = BaseMenu::active_menu->parent;
+	if (BaseMenu::active_menu->parent != nullptr)
+	{
+		BaseMenu::active_menu = BaseMenu::active_menu->parent;
 		BaseMenu::active_item = 0;
 		active_child = BaseMenu::active_item;
 		return false;
-  }
-  else
-  {
-    BaseMenu::active_menu = root_menu;
+	}
+	else
+	{
+		BaseMenu::active_menu = root_menu;
 		BaseMenu::active_item = 0;
 		active_child = BaseMenu::active_item;
 		return true;
-  }
+	}
 	// BaseMenu::active_item = 0;
 	// active_child = BaseMenu::active_item;
-  //
+	//
 	// if(BaseMenu::active_menu == root_menu)
 	// {
 	// 	return true;
@@ -219,57 +223,65 @@ void Menu::selectRoot()
 	active_child = BaseMenu::active_item;
 }
 
-void Menu::addChild(const char* label)
+void Menu::addChild(const char *label)
 {
-  static_cast<DirectoryMenu*>(BaseMenu::active_menu)->addDirectoryMenu(label);
+	static_cast<DirectoryMenu *>(BaseMenu::active_menu)->addDirectoryMenu(label);
 }
 
-void Menu::addChild(const char* label, void (*callback)(void))
+void Menu::addChild(const char *label, void (*callback)(void))
 {
-  static_cast<DirectoryMenu*>(BaseMenu::active_menu)->addActionMenu(label, callback);
+	static_cast<DirectoryMenu *>(BaseMenu::active_menu)->addActionMenu(label, callback);
 }
 
-void Menu::addChild(const char* label, void (*callback)(uint8_t), const uint8_t val)
+void Menu::addChild(const char *label, void (*callback)(uint8_t), const uint8_t val)
 {
-  static_cast<DirectoryMenu*>(BaseMenu::active_menu)->addActionMenu(label, callback, val);
+	static_cast<DirectoryMenu *>(BaseMenu::active_menu)->addActionMenu(label, callback, val);
 }
 
-void Menu::addChild(const char* label, void (*callback)(const char *, const char *), const char * key)
+void Menu::addChild(const char *label, void (*callback)(const char *, const char *), const char *key)
 {
-  static_cast<DirectoryMenu*>(BaseMenu::active_menu)->addSettingMenu(label, callback, key);
+	static_cast<DirectoryMenu *>(BaseMenu::active_menu)->addSettingMenu(label, callback, key);
 }
 
 uint8_t Menu::countChildren()
 {
-	//return BaseMenu::active_menu->submenus.size(); // the STL way
-  return BaseMenu::active_menu->submenus.Size();
+	return BaseMenu::active_menu->submenus.size(); // the STL way
+	// return BaseMenu::active_menu->submenus.Size();
 }
 
-Vector<BaseMenu*> Menu::getChildren()
+// Vector<BaseMenu *> Menu::getChildren()
+std::vector<BaseMenu *> Menu::getChildren()
 {
-  return BaseMenu::active_menu->submenus;
+	return BaseMenu::active_menu->submenus;
 }
 
-BaseMenu* Menu::getActiveChild()
+uint8_t Menu::getActiveChild()
 {
-	return BaseMenu::active_menu->submenus[BaseMenu::active_item];
+	return BaseMenu::active_item;
 }
 
-BaseMenu* Menu::getActiveChild(const uint8_t offset)
-{
-	if(active_child + offset >= BaseMenu::active_menu->submenus.Size())
-	{
-		return nullptr;
-	}
-	else
-	{
-		return BaseMenu::active_menu->submenus[BaseMenu::active_item + offset];
-	}
-}
+// BaseMenu *Menu::getActiveChild()
+// {
+// 	return BaseMenu::active_menu->submenus[BaseMenu::active_item];
+// }
 
-const char* Menu::getActiveChildLabel()
+// BaseMenu *Menu::getActiveChild(const uint8_t offset)
+// {
+// 	// if (active_child + offset >= BaseMenu::active_menu->submenus.size())
+// 	if (active_child + offset >= BaseMenu::active_menu->submenus.Size())
+// 	{
+// 		return nullptr;
+// 	}
+// 	else
+// 	{
+// 		return BaseMenu::active_menu->submenus[BaseMenu::active_item + offset];
+// 	}
+// }
+
+const char *Menu::getActiveChildLabel()
 {
-	if(active_child >= BaseMenu::active_menu->submenus.Size())
+	if (active_child >= BaseMenu::active_menu->submenus.size())
+	// if (active_child >= BaseMenu::active_menu->submenus.Size())
 	{
 		return "";
 	}
@@ -280,9 +292,10 @@ const char* Menu::getActiveChildLabel()
 	//return BaseMenu::active_menu->submenus[BaseMenu::active_item]->label;
 }
 
-const char* Menu::getActiveChildLabel(const uint8_t offset)
+const char *Menu::getActiveChildLabel(const uint8_t offset)
 {
-	if(active_child + offset >= BaseMenu::active_menu->submenus.Size())
+	if (active_child + offset >= BaseMenu::active_menu->submenus.size())
+	// if (active_child + offset >= BaseMenu::active_menu->submenus.Size())
 	{
 		return "";
 	}
@@ -294,7 +307,7 @@ const char* Menu::getActiveChildLabel(const uint8_t offset)
 
 bool Menu::setActiveChild(uint8_t child)
 {
-	if(child <= countChildren() - 1)
+	if (child <= countChildren() - 1)
 	{
 		BaseMenu::active_item = child;
 		active_child = BaseMenu::active_item;
@@ -308,7 +321,7 @@ bool Menu::setActiveChild(uint8_t child)
 
 bool Menu::atRoot()
 {
-	if(BaseMenu::active_menu == root_menu)
+	if (BaseMenu::active_menu == root_menu)
 	{
 		return true;
 	}
@@ -320,56 +333,56 @@ bool Menu::atRoot()
 
 void Menu::operator++()
 {
-  if(BaseMenu::active_item >= countChildren() - 1)
-  {
-    BaseMenu::active_item = 0;
+	if (BaseMenu::active_item >= countChildren() - 1)
+	{
+		BaseMenu::active_item = 0;
 		active_child = BaseMenu::active_item;
-  }
-  else
-  {
-    ++BaseMenu::active_item;
+	}
+	else
+	{
+		++BaseMenu::active_item;
 		active_child = BaseMenu::active_item;
-  }
+	}
 }
 
 void Menu::operator++(int)
 {
-  if(BaseMenu::active_item >= countChildren() - 1)
-  {
-    BaseMenu::active_item = 0;
+	if (BaseMenu::active_item >= countChildren() - 1)
+	{
+		BaseMenu::active_item = 0;
 		active_child = BaseMenu::active_item;
-  }
-  else
-  {
-    ++BaseMenu::active_item;
+	}
+	else
+	{
+		++BaseMenu::active_item;
 		active_child = BaseMenu::active_item;
-  }
+	}
 }
 
 void Menu::operator--()
 {
-  if(BaseMenu::active_item == 0)
-  {
-    BaseMenu::active_item = countChildren() - 1;
+	if (BaseMenu::active_item == 0)
+	{
+		BaseMenu::active_item = countChildren() - 1;
 		active_child = BaseMenu::active_item;
-  }
-  else
-  {
-    --BaseMenu::active_item;
+	}
+	else
+	{
+		--BaseMenu::active_item;
 		active_child = BaseMenu::active_item;
-  }
+	}
 }
 
 void Menu::operator--(int)
 {
-  if(BaseMenu::active_item == 0)
-  {
-    BaseMenu::active_item = countChildren() - 1;
+	if (BaseMenu::active_item == 0)
+	{
+		BaseMenu::active_item = countChildren() - 1;
 		active_child = BaseMenu::active_item;
-  }
-  else
-  {
-    --BaseMenu::active_item;
+	}
+	else
+	{
+		--BaseMenu::active_item;
 		active_child = BaseMenu::active_item;
-  }
+	}
 }
